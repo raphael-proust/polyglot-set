@@ -1,0 +1,11 @@
+# Set, an implementation in OCaml
+
+This is a one-file, no-dependency (beyond the [Stdlib]) implementation of the
+Set game.
+
+## How to run
+
+```
+ocaml set.ml
+```
+
