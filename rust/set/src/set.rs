@@ -6,16 +6,16 @@ pub mod prop {
 
     macro_rules! makeprop {
 
-        ($name: ident, $p0: ident, $p1: ident, $p2: ident) => {
+        ($name: ident, $p0: ident, $s0: literal, $p1: ident, $s1: literal, $p2: ident, $s2: literal) => {
 
             #[derive(PartialEq, Clone)]
             pub enum $name { $p0, $p1, $p2 }
             impl fmt::Display for $name {
                 fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                     match self {
-                        $name::$p0 => write!(f, stringify!($p0)),
-                        $name::$p1 => write!(f, stringify!($p1)),
-                        $name::$p2 => write!(f, stringify!($p2)),
+                        $name::$p0 => write!(f, $s0),
+                        $name::$p1 => write!(f, $s1),
+                        $name::$p2 => write!(f, $s2),
                     }
                 }
             }
@@ -24,10 +24,10 @@ pub mod prop {
 
     }
 
-    makeprop!(Shape, Wave, Pill, Diamond);
-    makeprop!(Fill, Empty, Partial, Full);
-    makeprop!(Colour, Red, Green, Purple);
-    makeprop!(Count, One, Two, Three);
+    makeprop!(Shape, Wave, "~", Pill, "o", Diamond, "⋄" );
+    makeprop!(Fill, Empty, "░", Partial, "▒", Full, "▓");
+    makeprop!(Colour, Red, "R", Green, "G", Purple, "P"  );
+    makeprop!(Count, One, "⠄", Two, "⠢", Three, "⠦");
 }
 
 pub mod card {
@@ -56,34 +56,52 @@ pub mod card {
 }
 
 pub mod deck {
-    use rand;
     use rand::prelude::SliceRandom;
+    use std::convert::TryInto;
 
-    pub type Deck = Vec<super::card::Card>;
-    pub fn new_unshuffled() -> Deck {
+    const DECKSIZE: usize = 3*3*3*3;
+
+    pub type Deck = [super::card::Card; DECKSIZE];
+
+    pub fn new<R: rand::Rng>(rng: &mut R) -> Deck {
         let shapes: [super::prop::Shape; 3] = [super::prop::Shape::Wave, super::prop::Shape::Pill, super::prop::Shape::Diamond ];
         let fills: [super::prop::Fill; 3] = [super::prop::Fill::Empty, super::prop::Fill::Partial, super::prop::Fill::Full ];
         let colours: [super::prop::Colour; 3] = [super::prop::Colour::Red, super::prop::Colour::Green, super::prop::Colour::Purple ];
         let counts: [super::prop::Count; 3] = [super::prop::Count::One, super::prop::Count::Two, super::prop::Count::Three ];
-        let mut all_cards: Deck = vec![];
+        let mut v: Vec<super::card::Card> = vec![];
         for shape in shapes.iter() {
             for fill in fills.iter() {
                 for colour in colours.iter() {
                     for count in counts.iter() {
-                        all_cards.push(super::card::Card { shape: shape.clone(), fill: fill.clone(), colour: colour.clone(), count: count.clone() })
+                        v.push(super::card::Card { shape: shape.clone(), fill: fill.clone(), colour: colour.clone(), count: count.clone() })
                     }
                 }
             }
         };
-        return all_cards;
+        v.shuffle(rng);
+        match v.try_into() {
+            Ok(a) => return a,
+            Err(_) => std::process::exit(1),
+        };
     }
 
-    pub fn shuffle<R: rand::Rng>(d: &mut Deck, rng: &mut R) {
-        d.shuffle(rng);
+}
+
+pub mod table {
+
+    pub struct Table {
+        // A table is:
+        // - a set of guessed triplets (all the cards in `cards[0..guessed]`),
+        // - a set of already drawn cards (all cards in `cards[guessed..drawn]`),
+        // - a draw pile of not yet drawn cards (all cards in `cards[drawn..]`).
+        pub cards: super::deck::Deck,
+        pub guessed: u8,
+        pub drawn: u8,
     }
 
-    pub fn draw(d: &mut Deck) -> Option<super::card::Card> {
-        return d.pop();
-    }
+    //TODO:
+    // - draw: increment drawn field (return bool)
+    // - guess: finds a triplet of indices in the range [guessed..drawn] then move those cards to
+    // the indices`[guessed, guessed+1, guessed+2], then increment the guessed field (return bool)
 
 }
