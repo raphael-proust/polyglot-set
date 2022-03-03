@@ -19,6 +19,11 @@ pub mod prop {
                     }
                 }
             }
+            impl $name {
+                pub fn all() -> [$name; 3] {
+                    return [$name::$p0, $name::$p1, $name::$p2];
+                }
+            }
 
         };
 
@@ -55,24 +60,20 @@ pub mod card {
 
 }
 
+const DECKSIZE: usize = 3*3*3*3;
+
 pub mod deck {
     use rand::prelude::SliceRandom;
     use std::convert::TryInto;
 
-    const DECKSIZE: usize = 3*3*3*3;
-
-    pub type Deck = [super::card::Card; DECKSIZE];
+    pub type Deck = [super::card::Card; super::DECKSIZE];
 
     pub fn new<R: rand::Rng>(rng: &mut R) -> Deck {
-        let shapes: [super::prop::Shape; 3] = [super::prop::Shape::Wave, super::prop::Shape::Pill, super::prop::Shape::Diamond ];
-        let fills: [super::prop::Fill; 3] = [super::prop::Fill::Empty, super::prop::Fill::Partial, super::prop::Fill::Full ];
-        let colours: [super::prop::Colour; 3] = [super::prop::Colour::Red, super::prop::Colour::Green, super::prop::Colour::Purple ];
-        let counts: [super::prop::Count; 3] = [super::prop::Count::One, super::prop::Count::Two, super::prop::Count::Three ];
         let mut v: Vec<super::card::Card> = vec![];
-        for shape in shapes.iter() {
-            for fill in fills.iter() {
-                for colour in colours.iter() {
-                    for count in counts.iter() {
+        for shape in super::prop::Shape::all().iter() {
+            for fill in super::prop::Fill::all().iter() {
+                for colour in super::prop::Colour::all().iter() {
+                    for count in super::prop::Count::all().iter() {
                         v.push(super::card::Card { shape: shape.clone(), fill: fill.clone(), colour: colour.clone(), count: count.clone() })
                     }
                 }
@@ -95,13 +96,55 @@ pub mod table {
         // - a set of already drawn cards (all cards in `cards[guessed..drawn]`),
         // - a draw pile of not yet drawn cards (all cards in `cards[drawn..]`).
         pub cards: super::deck::Deck,
-        pub guessed: u8,
-        pub drawn: u8,
+        pub guessed: usize,
+        pub drawn: usize,
     }
 
-    //TODO:
-    // - draw: increment drawn field (return bool)
-    // - guess: finds a triplet of indices in the range [guessed..drawn] then move those cards to
-    // the indices`[guessed, guessed+1, guessed+2], then increment the guessed field (return bool)
+    impl Table {
+        pub fn new<R: rand::Rng>(rng: &mut R) -> Table {
+            let cards: super::deck::Deck = super::deck::new(rng);
+            let guessed: usize = 0;
+            let drawn: usize = 12;
+            return Table {cards, guessed, drawn}
+        }
+
+        pub fn draw (&mut self) -> bool {
+            if self.drawn < super::DECKSIZE {
+                self.drawn = self.drawn + 3;
+                return true
+            } else {
+                return false;
+            }
+        }
+
+        fn triplet_indices (&mut self) -> Option<(usize, usize, usize)> {
+            for (ia, ca) in self.cards[self.guessed .. (self.drawn - 2)].iter().enumerate() {
+                for (ib, cb) in self.cards[(ia+1) .. (self.drawn - 1)].iter().enumerate() {
+                    for (ic, cc) in self.cards[(ib+1) .. self.drawn].iter().enumerate() {
+                        if super::card::triplet (&ca, &cb, &cc) {
+                            return Some((ia, ib, ic))
+                        }
+                    }
+                }
+            }
+            return None
+        }
+
+        pub fn triplet (&mut self) -> bool {
+            if self.guessed == self.drawn { return false; }
+            if self.guessed + 1 == super::DECKSIZE { return false; }
+            match self.triplet_indices() {
+                None => return false,
+                Some((indexa, indexb, indexc)) => {
+                    self.cards.swap(indexa, self.guessed);
+                    self.cards.swap(indexb, self.guessed+1);
+                    self.cards.swap(indexc, self.guessed+2);
+                    self.guessed = self.guessed + 3;
+                    return true;
+                },
+            }
+        }
+
+    }
 
 }
