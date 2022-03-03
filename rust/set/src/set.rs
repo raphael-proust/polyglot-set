@@ -23,6 +23,29 @@ pub mod prop {
                 pub fn all() -> [$name; 3] {
                     return [$name::$p0, $name::$p1, $name::$p2];
                 }
+                pub fn third(x: &$name, y: &$name) -> $name {
+                    if x == y {
+                        return x.clone()
+                    } else {
+                        let mut has0 = false;
+                        let mut has1 = false;
+                        let mut has2 = false;
+                        match x {
+                            $name::$p0 => has0 = true,
+                            $name::$p1 => has1 = true,
+                            $name::$p2 => has2 = true,
+                        };
+                        match y {
+                            $name::$p0 => has0 = true,
+                            $name::$p1 => has1 = true,
+                            $name::$p2 => has2 = true,
+                        };
+                        if !has0 { return $name::$p0 }
+                        else if !has1 { return $name::$p1 }
+                        else if !has2 { return $name::$p2 }
+                        else { panic!("cannot find third prop for {} and {}", x, y) }
+                    }
+                }
             }
 
         };
@@ -50,6 +73,14 @@ pub mod card {
             && super::prop::triplet (&ca.fill, &cb.fill, &cc.fill)
             && super::prop::triplet (&ca.colour, &cb.colour, &cc.colour)
             && super::prop::triplet (&ca.count, &cb.count, &cc.count)
+    }
+
+    pub fn third (ca: &Card, cb: &Card) -> impl Fn(&Card) -> bool {
+        let shape = super::prop::Shape::third(&ca.shape, &cb.shape);
+        let fill = super::prop::Fill::third(&ca.fill, &cb.fill);
+        let colour = super::prop::Colour::third(&ca.colour, &cb.colour);
+        let count = super::prop::Count::third(&ca.count, &cb.count);
+        move |cc: &Card| cc.shape == shape && cc.fill == fill && cc.colour == colour && cc.count == count
     }
 
     impl fmt::Display for Card {
@@ -120,8 +151,9 @@ pub mod table {
         fn triplet_indices (&mut self) -> Option<(usize, usize, usize)> {
             for (ia, ca) in self.cards[self.guessed .. (self.drawn - 2)].iter().enumerate() {
                 for (ib, cb) in self.cards[(ia+1) .. (self.drawn - 1)].iter().enumerate() {
+                    let third = super::card::third(&ca, &cb);
                     for (ic, cc) in self.cards[(ib+1) .. self.drawn].iter().enumerate() {
-                        if super::card::triplet (&ca, &cb, &cc) {
+                        if third(&cc) {
                             return Some((ia, ib, ic))
                         }
                     }
